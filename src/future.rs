@@ -5,7 +5,7 @@ use pin_project::pin_project;
 
 use tokio::sync::oneshot;
 
-use crate::tower_actor::actor::ActorError;
+use crate::actor::ActorError;
 
 #[pin_project(project = ActorFutureProjection)]
 pub struct ActorFuture<S, E> {

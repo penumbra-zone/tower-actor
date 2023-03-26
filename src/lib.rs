@@ -1,26 +1,14 @@
-pub use tracing;
+mod actor;
+mod future;
+mod message;
 
-#[cfg(not(tokio_unstable))]
-mod tower_actor {
-    compile_error!("Tower actor must be compiled with a `--cfg tokio_unstable` rustc flag");
-}
-
-pub use tower_actor::*;
-
-#[cfg(tokio_unstable)]
-mod tower_actor {
-    pub(crate) mod actor;
-    pub(crate) mod future;
-    pub(crate) mod message;
-
-    pub use actor::*;
-    pub use future::*;
-    pub use message::*;
-}
+pub use actor::*;
+pub use future::*;
+pub use message::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::tower_actor::{actor::Actor, message::Request};
+    use crate::actor::Actor;
     use crate::ActorError;
     use std::sync::Arc;
     use std::task::{Context, Poll};
@@ -28,19 +16,6 @@ mod tests {
     use tokio::sync::{oneshot, Mutex};
 
     use tower::Service;
-    use tracing::{span, Level};
-
-    impl Request for () {
-        fn create_span(&self) -> tracing::Span {
-            span!(Level::INFO, "unit_span")
-        }
-    }
-
-    impl Request for u32 {
-        fn create_span(&self) -> tracing::Span {
-            span!(Level::INFO, "u32_span")
-        }
-    }
 
     #[derive(Error, Debug, PartialEq, Eq)]
     enum TestError {

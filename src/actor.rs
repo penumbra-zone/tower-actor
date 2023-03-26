@@ -3,13 +3,14 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::tower_actor::future::ActorFuture;
-use crate::tower_actor::message::{Message, Request};
+use crate::future::ActorFuture;
+use crate::message::Message;
 
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::PollSender;
 use tower::Service;
+use tracing::Span;
 
 #[derive(Error, Debug)]
 pub enum ActorError {
@@ -25,7 +26,7 @@ pub struct Actor<R, S, E> {
 
 impl<R, S, E> Actor<R, S, E>
 where
-    R: Request + 'static,
+    R: Send + 'static,
     S: Send + 'static,
     E: Send + 'static,
 {
@@ -34,9 +35,21 @@ where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
         W: Future<Output = Result<(), E>> + Send + 'static,
     {
-        Self::named("tower-actor-worker", bound, f)
+        return Self::named("tower-actor-worker", bound, f);
+
+        #[cfg(not(tokio_unstable))]
+        {
+            let (queue_tx, queue_rx) = mpsc::channel(bound);
+
+            tokio::spawn(f(queue_rx));
+
+            Self {
+                queue: PollSender::new(queue_tx),
+            }
+        }
     }
 
+    #[cfg(tokio_unstable)]
     pub fn named<'a, F, W>(name: &'a str, bound: usize, f: F) -> Self
     where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
@@ -57,7 +70,7 @@ where
 
 impl<R, S, E> Service<R> for Actor<R, S, E>
 where
-    R: Request + 'static,
+    R: Send + 'static,
     S: Send + 'static,
     E: Send + 'static + From<ActorError>,
 {
@@ -80,7 +93,7 @@ where
         // before calling `call()`, we can safely proceed without checking that the queue isn't closed.
         debug_assert!(!self.queue.is_closed());
 
-        let span = req.create_span();
+        let span = Span::current();
         let (tx, rx) = oneshot::channel();
 
         self.queue
