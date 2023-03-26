@@ -37,7 +37,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn follows_service_contract() {
-        let mut actor = Actor::<(), (), TestError>::new(10, |_| async move {});
+        let mut actor = Actor::<(), (), TestError>::new(10, |_| async move { Ok(()) });
         actor.call(());
     }
 
@@ -47,6 +47,7 @@ mod tests {
         let mut actor = Actor::<(), (), TestError>::new(10, |mut rx| async move {
             let msg = rx.recv().await;
             drop(msg);
+            Ok(())
         });
         let mut cx = Context::from_waker(futures::task::noop_waker_ref());
 
@@ -96,6 +97,7 @@ mod tests {
 
             // Make sure we can receive one more message for the last poll_ready
             rx.recv().await;
+            Ok(())
         });
 
         // Prep the actor
@@ -134,6 +136,7 @@ mod tests {
                     rsp_sender.send(Ok(*lock))
                 });
             }
+            Ok(())
         });
         let mut cx = Context::from_waker(futures::task::noop_waker_ref());
 
