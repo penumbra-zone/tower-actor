@@ -5,6 +5,7 @@ use std::{
 
 use crate::future::ActorFuture;
 use crate::message::{Message, Request};
+
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::PollSender;
@@ -14,8 +15,8 @@ use tower::Service;
 pub enum ActorError {
     #[error("Actor has terminated or panicked")]
     ActorTerminated,
-    #[error("Actor has terminated this request without responding")]
-    RequestCancelled,
+    #[error("Actor has dropped this request without responding")]
+    ActorHungUp,
 }
 
 pub struct Actor<R, S, E> {
@@ -31,7 +32,7 @@ where
     pub fn new<F, W>(bound: usize, f: F) -> Self
     where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
-        W: Future<Output = Result<S, E>> + Send + 'static,
+        W: Future<Output = Result<(), E>> + Send + 'static,
     {
         Self::named("tower-actor-worker", bound, f)
     }
@@ -39,7 +40,7 @@ where
     pub fn named<'a, F, W>(name: &'a str, bound: usize, f: F) -> Self
     where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
-        W: Future<Output = Result<S, E>> + Send + 'static,
+        W: Future<Output = Result<(), E>> + Send + 'static,
     {
         let (queue_tx, queue_rx) = mpsc::channel(bound);
 
@@ -58,22 +59,26 @@ impl<R, S, E> Service<R> for Actor<R, S, E>
 where
     R: Request + 'static,
     S: Send + 'static,
-    E: Send + 'static,
+    E: Send + 'static + From<ActorError>,
 {
-    type Response = Result<S, E>;
-    type Error = ActorError;
+    type Response = S;
+    type Error = E;
     type Future = ActorFuture<S, E>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.queue
             .poll_reserve(cx)
-            .map_err(|_| ActorError::ActorTerminated)
+            .map_err(|_e| ActorError::ActorTerminated.into())
     }
 
     fn call(&mut self, req: R) -> Self::Future {
-        if self.queue.is_closed() {
-            return ActorFuture::Terminated;
-        }
+        // Due to the permit system that PollSender uses, we can always send on the queue if
+        // Poll reserve succeeded.
+        // See: https://docs.rs/tokio/latest/tokio/sync/mpsc/struct.Receiver.html#method.close
+        //
+        // Since the Service contract requires that `poll_ready()` pass
+        // before calling `call()`, we can safely proceed without checking that the queue isn't closed.
+        debug_assert!(!self.queue.is_closed());
 
         let span = req.create_span();
         let (tx, rx) = oneshot::channel();
@@ -84,8 +89,8 @@ where
                 rsp_sender: tx,
                 span,
             })
-            .unwrap_or_else(|e| panic!("called without `poll_ready`: {}", e)); // Non-debug requiring expect
+            .unwrap_or_else(|e| panic!("Actor::call() called without `poll_ready`: {}", e)); // Non-debug expect()
 
-        ActorFuture::Future(rx)
+        ActorFuture { inner: rx }
     }
 }
