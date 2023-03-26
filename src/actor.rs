@@ -33,7 +33,7 @@ where
     pub fn new<F, W>(bound: usize, f: F) -> Self
     where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
-        W: Future<Output = Result<(), E>> + Send + 'static,
+        W: Future<Output = ()> + Send + 'static,
     {
         return Self::named("tower-actor-worker", bound, f);
 
@@ -53,7 +53,7 @@ where
     pub fn named<'a, F, W>(name: &'a str, bound: usize, f: F) -> Self
     where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
-        W: Future<Output = Result<(), E>> + Send + 'static,
+        W: Future<Output = ()> + Send + 'static,
     {
         let (queue_tx, queue_rx) = mpsc::channel(bound);
 
