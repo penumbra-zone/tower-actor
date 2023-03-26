@@ -3,8 +3,8 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::future::ActorFuture;
-use crate::message::{Message, Request};
+use crate::tower_actor::future::ActorFuture;
+use crate::tower_actor::message::{Message, Request};
 
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
