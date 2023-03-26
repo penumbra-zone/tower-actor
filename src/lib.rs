@@ -1,16 +1,5 @@
 pub use tracing;
 
-#[cfg(tokio_unstable)]
-mod tower_actor {
-    mod actor;
-    mod future;
-    mod message;
-
-    pub use actor::*;
-    pub use future::*;
-    pub use message::*;
-}
-
 #[cfg(not(tokio_unstable))]
 mod tower_actor {
     compile_error!("Tower actor must be compiled with a `--cfg tokio_unstable` rustc flag");
@@ -18,11 +7,21 @@ mod tower_actor {
 
 pub use tower_actor::*;
 
+#[cfg(tokio_unstable)]
+mod tower_actor {
+    pub(crate) mod actor;
+    pub(crate) mod future;
+    pub(crate) mod message;
+
+    pub use actor::*;
+    pub use future::*;
+    pub use message::*;
+}
+
 #[cfg(test)]
-#[cfg(all(tokio_unstable, feature = "tracing"))]
 mod tests {
+    use crate::tower_actor::{actor::Actor, message::Request};
     use crate::ActorError;
-    use crate::{actor::Actor, message::Request};
     use std::sync::Arc;
     use std::task::{Context, Poll};
     use thiserror::Error;
