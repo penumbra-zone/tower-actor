@@ -35,7 +35,10 @@ where
         F: FnOnce(mpsc::Receiver<Message<R, S, E>>) -> W,
         W: Future<Output = Result<(), E>> + Send + 'static,
     {
-        return Self::named("tower-actor-worker", bound, f);
+        #[cfg(tokio_unstable)]
+        {
+            return Self::named("tower-actor-worker", bound, f);
+        }
 
         #[cfg(not(tokio_unstable))]
         {
