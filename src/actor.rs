@@ -20,8 +20,20 @@ pub enum ActorError {
     ActorHungUp,
 }
 
+/// A service backed by an actor that runs in a separate task and processes
+/// messages asynchronously.
+#[derive(Debug)]
 pub struct Actor<R, S, E> {
     queue: tokio_util::sync::PollSender<Message<R, S, E>>,
+}
+
+// Implement this manually rather than via derive, so that it's not conditional on any bounds on R, S, E.
+impl<R, S, E> std::clone::Clone for Actor<R, S, E> {
+    fn clone(&self) -> Self {
+        Self {
+            queue: self.queue.clone(),
+        }
+    }
 }
 
 impl<R, S, E> Actor<R, S, E>
