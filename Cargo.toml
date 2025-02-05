@@ -1,6 +1,6 @@
 [package]
 name = "tower-actor"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A `tower` middleware that creates a `Service` by passing messages to an actor."
@@ -13,7 +13,7 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tower = "0.4"
+tower = "0.5.2"
 tokio = { version = "1.22", features = ["full", "tracing"] }
 tracing = "0.1"
 tokio-util = "0.7"
