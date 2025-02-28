@@ -23,3 +23,6 @@ tokio-util = "0.7"
 futures = "0.3"
 pin-project = "1.0.12"
 thiserror = "1.0.40"
+
+[dev-dependencies]
+tokio = { version = "1.22", features = ["macros", "rt-multi-thread"] }
